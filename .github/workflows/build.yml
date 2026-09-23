@@ -1,37 +1,30 @@
-name: Build Molamax Android APK
+name: Build Android APK
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
+      - master
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build Android APK
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Get the project source code
-      - name: Checkout repository
+      - name: Checkout source code
         uses: actions/checkout@v4
 
-      # 2. Set up Java
-      - name: Set up JDK 17
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
 
-      # 3. Set up Android SDK
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      # 4. Install required Android SDK components
       - name: Install Android SDK packages
         run: |
           yes | sdkmanager --licenses || true
@@ -39,30 +32,33 @@ jobs:
           sdkmanager "platforms;android-35"
           sdkmanager "build-tools;35.0.0"
 
-      # 5. Make Gradle executable
-      - name: Grant execute permission to Gradle
-        run: chmod +x ./gradlew
+      - name: Check Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          adb --version
+          sdkmanager --list_installed
 
-      # 6. Clean project
+      - name: Make Gradle wrapper executable
+        run: |
+          chmod +x ./gradlew
+
+      - name: Create local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+
       - name: Clean project
-        run: ./gradlew clean
+        run: |
+          ./gradlew clean
 
-      # 7. Build debug APK
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: |
+          ./gradlew assembleDebug --stacktrace --info
 
-      # 8. Upload APK
-      - name: Upload Molamax APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Molamax-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: app-debug-apk
+          path: |
+            **/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-
-      # 9. Show APK information
-      - name: Show APK location
-        run: |
-          echo "========================================"
-          echo "Molamax APK successfully built"
-          echo "========================================"
-          ls -lh app/build/outputs/apk/debug/app-debug.apk
